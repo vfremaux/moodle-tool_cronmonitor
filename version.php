@@ -17,9 +17,11 @@
 /**
  * Version details.
  *
- * @package    tool_cronmonitor
- * @copyright  2008 Petr Skoda {@link http://skodak.org/}
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package     tool_cronmonitor
+ * @category    tool
+ * @author      Valery Fremaux <valery.fremaux@gmail.com>
+ * @copyright   2012 Valery Fremaux (http://www.mylearningfactory.com)
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
@@ -28,3 +30,7 @@ $plugin->version   = 2016061301; // The current plugin version (Date: YYYYMMDDXX
 $plugin->requires  = 2014050800; // Requires this Moodle version.
 $plugin->component = 'tool_cronmonitor'; // Full name of the plugin (used for diagnostics).
 $plugin->release = '2.7.0 (Build 2016011100)';
+$plugin->maturity = MATURITY_RC;
+
+// Non moodle attributes.
+$plugin->codeincrement = '2.7.0000';

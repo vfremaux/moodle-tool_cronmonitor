@@ -3,13 +3,14 @@
 define('CLI_SCRIPT', true);
 
 require(dirname(dirname(dirname(dirname(dirname(__FILE__))))).'/config.php');
-require_once($CFG->libdir.'/clilib.php');      // cli only functions
+require_once($CFG->libdir.'/clilib.php'); // Cli only functions.
 
-// now get cli options
-list($options, $unrecognized) = cli_get_params(array('help'=>false,
-                                                     'file'=>false,
-                                                     'mode'=>false,
-                                                     'user'=>false),
+// Now get cli options.
+
+list($options, $unrecognized) = cli_get_params(array('help' => false,
+                                                     'file' => false,
+                                                     'mode' => false,
+                                                     'user' => false),
                                                array('h' => 'help',
                                                      'm' => 'mode',
                                                      'f' => 'file',
@@ -17,7 +18,7 @@ list($options, $unrecognized) = cli_get_params(array('help'=>false,
                                                );
 
 if ($unrecognized) {
-    $unrecognized = implode("\n  ", $unrecognized);
+    $unrecognized = implode("\n ", $unrecognized);
     cli_error(get_string('cliunknowoption', 'admin', $unrecognized));
 }
 
@@ -69,7 +70,7 @@ if (!empty($options['file'])) {
         $url = new moodle_url('/admin/cron.php', $params);
         $ch = curl_init();
 
-        // set URL and other appropriate options
+        // Set URL and other appropriate options.
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: text/xml charset=UTF-8"));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -111,17 +112,17 @@ if (!empty($options['file'])) {
             $faulttype = 'HTTP RETURN ERROR';
             $notification = '['.$CFG->wwwroot.'] CURL HTTP error on '.$url;
         }
-        elseif (!empty($error)) {
+        else if (!empty($error)) {
             $faulttype = 'HTTP FETCH ERROR';
             $notification = '['.$CFG->wwwroot.'] CURL error on '.$url;
         }
 
-        // close cURL resource, and free up system resources
+        // Close cURL resource, and free up system resources.
         curl_close($ch);
     }
 }
 
-// We have a proper output. Analyse
+// We have a proper output. Analyse.
 
 $notification = '';
 if (empty($output)) {
@@ -133,12 +134,12 @@ if (empty($output)) {
         die('Cron OK'."\n");
     }
 
-    elseif (preg_match('/Moodle upgrade pending, cron execution suspended./', $output)) {
+    else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $output)) {
         $faulttype = 'UPGRADE';
         $notification = '['.$CFG->wwwroot.'] Unresolved upgrade pending.';
     }
 
-    elseif (preg_match('/Fatal error/', $output)) {
+    else if (preg_match('/Fatal error/', $output)) {
         $faulttype = 'PHP ERROR';
         $notification = '['.$CFG->wwwroot.'] Fatal error in cron.';
     }
@@ -154,17 +155,19 @@ if (empty($output)) {
     }
 }
 
-
-// We have some notifications
+// We have some notifications.
 
 $config = get_config('tool_cronmonitor');
 
+$targets = array();
 if (empty($config->userstosendto)) {
     $targets = $DB->get_records_list('user', 'id', explode(',',$CFG->siteadmins));
 } else {
     $usernames = explode(','; $config->userstosendto);
-    foreach ($usernames as $u) {
-        
+    foreach ($usernames as $un) {
+        $un = trim($un);
+        $u = $DB->get_record('user', array('id' => $un));
+        $targets[$u->id] = $u;
     }
 }
 
@@ -177,5 +180,10 @@ if (!empty($notification)) {
     foreach($targets as $a) {
         email_to_user($a, $a, '['.$SITE->shortname.':'.$faulttype.'] Cron Monitoring system', $notification);
     }
-} elseif ($config->positivemail) {
+} else if ($config->positivemail) {
+    if (!empty($targets)) {
+        foreach ($targets as $a) {
+            email_to_user($a, $a, '['.$SITE->shortname.' CRON OK] Cron Monitoring system', 'Everything fine');
+        }
+    }
 }
