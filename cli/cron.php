@@ -1,4 +1,25 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * @package     tool_cronmonitor
+ * @category    tool
+ * @copyright   2016 Valery Fremaux <valery@edunao.com>
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 define('CLI_SCRIPT', true);
 
@@ -23,8 +44,8 @@ if ($unrecognized) {
 }
 
 if ($options['help']) {
-    $help =
-"Monitors the platform cron and checks ts sanity. Mails an alert if blocked or erroneous.
+    $help = "
+Monitors the platform cron and checks ts sanity. Mails an alert if blocked or erroneous.
 
 Options:
 -h, --help            Print out this help
@@ -80,25 +101,25 @@ if (!empty($options['file'])) {
 
         if (!empty($CFG->proxyhost)) {
             if (empty($CFG->proxyport)) {
-                $proxy_host = $CFG->proxyhost;
+                $proxyhost = $CFG->proxyhost;
             } else {
-                $proxy_host = $CFG->proxyhost.':'.$CFG->proxyport;
+                $proxyhost = $CFG->proxyhost.':'.$CFG->proxyport;
             }
-            curl_setopt($ch, CURLOPT_PROXY, $proxy_host);
+            curl_setopt($ch, CURLOPT_PROXY, $proxyhost);
 
             if (!empty($CFG->proxyuser) and !empty($CFG->proxypassword)) {
-                $proxy_auth = $CFG->proxyuser.':'.$CFG->proxypassword;
+                $proxyauth = $CFG->proxyuser.':'.$CFG->proxypassword;
                 curl_setopt($ch, CURL_AUTHHTTP, CURLAUTH_BASIC);
-                curl_setopt($ch, CURL_PROXYAUTH, $proxy_auth);
+                curl_setopt($ch, CURL_PROXYAUTH, $proxyauth);
             }
 
             if (!empty($CFG->proxytype)) {
                 if ($CFG->proxytype == 'SOCKS5') {
-                    $proxy_type = CURLPROXY_SOCKS5;
+                    $proxytype = CURLPROXY_SOCKS5;
                 } else {
-                    $proxy_type = CURLPROXY_HTTP;
+                    $proxytype = CURLPROXY_HTTP;
                 }
-                curl_setopt($ch, CURL_PROXYTYPE, $proxy_type);
+                curl_setopt($ch, CURL_PROXYTYPE, $proxytype);
             }
         }
 
@@ -111,8 +132,7 @@ if (!empty($options['file'])) {
         if ($httpcode != 200) {
             $faulttype = 'HTTP RETURN ERROR';
             $notification = '['.$CFG->wwwroot.'] CURL HTTP error on '.$url;
-        }
-        else if (!empty($error)) {
+        } else if (!empty($error)) {
             $faulttype = 'HTTP FETCH ERROR';
             $notification = '['.$CFG->wwwroot.'] CURL error on '.$url;
         }
@@ -132,24 +152,16 @@ if (empty($output)) {
 
     if (preg_match('/Cron script completed correctly/', $output)) {
         die('Cron OK'."\n");
-    }
-
-    else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $output)) {
+    } else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $output)) {
         $faulttype = 'UPGRADE';
         $notification = '['.$CFG->wwwroot.'] Unresolved upgrade pending.';
-    }
-
-    else if (preg_match('/Fatal error/', $output)) {
+    } else if (preg_match('/Fatal error/', $output)) {
         $faulttype = 'PHP ERROR';
         $notification = '['.$CFG->wwwroot.'] Fatal error in cron.';
-    }
-
-    elseif (!preg_match('/Error code: cronerrorpassword/', $output)) {
+    } else if (!preg_match('/Error code: cronerrorpassword/', $output)) {
         $faulttype = 'PASSWORD ERROR';
         $notification = '['.$CFG->wwwroot.'] cron locked bvy password.';
-    }
-
-    else {
+    } else {
         $faulttype = 'OTHER ERROR';
         $notification = '['.$CFG->wwwroot.'] cron has some unclassified error.';
     }
@@ -161,9 +173,9 @@ $config = get_config('tool_cronmonitor');
 
 $targets = array();
 if (empty($config->userstosendto)) {
-    $targets = $DB->get_records_list('user', 'id', explode(',',$CFG->siteadmins));
+    $targets = $DB->get_records_list('user', 'id', explode(',', $CFG->siteadmins));
 } else {
-    $usernames = explode(','; $config->userstosendto);
+    $usernames = explode(',', $config->userstosendto);
     foreach ($usernames as $un) {
         $un = trim($un);
         $u = $DB->get_record('user', array('id' => $un));
@@ -177,7 +189,7 @@ if (!empty($notification)) {
     mtrace($faulttype);
     mtrace($notification);
 
-    foreach($targets as $a) {
+    foreach ($targets as $a) {
         email_to_user($a, $a, '['.$SITE->shortname.':'.$faulttype.'] Cron Monitoring system', $notification);
     }
 } else if ($config->positivemail) {
