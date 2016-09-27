@@ -15,10 +15,10 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * @package    tool_cronmonitor
- * @category   tool
- * @copyright  2016 Valery Fremaux <valery@edunao.com>
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package     tool_cronmonitor
+ * @category    tool
+ * @copyright   2016 Valery Fremaux <valery@edunao.com>
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
@@ -26,20 +26,25 @@ defined('MOODLE_INTERNAL') || die();
 if (is_dir($CFG->dirroot.'/local/adminsettings')) {
     list($hasconfig, $hassiteconfig, $capability) = local_adminsettings_access();
 } else {
-    // Standard Moodle code
+    // Standard Moodle code.
     $capability = 'moodle/site:config';
     $hasconfig = $hassiteconfig = has_capability($capability, context_system::instance());
 }
 
 if ($hassiteconfig) {
-    // Global limits
-    // Detailed per context might override
-    // Capability enabled people might override
+    /*
+     * Global limits
+     * Detailed per context might override
+     * Capability enabled people might override
+     */
     $settings = new admin_settingpage('tool_cronmonitor', get_string('pluginname', 'tool_cronmonitor'));
     $ADMIN->add('tools', $settings);
 
-    $settings->add(new admin_setting_configcheckbox('tool_cronmonitor/positivemail', get_string('configpositivemail', 'tool_resourcelimiter'), get_string('configpositivemail_desc', 'tool_resourcelimiter'), 0));
+    $label = get_string('configpositivemail', 'tool_cronmonitor');
+    $desc = get_string('configpositivemail_desc', 'tool_cronmonitor');
+    $settings->add(new admin_setting_configcheckbox('tool_cronmonitor/positivemail', $label, $desc, 0));
 
-    $settings->add(new admin_setting_configtext('tool_cronmonitor/userstosendto', get_string('configuserstosendto', 'tool_resourcelimiter'), get_string('configuserstosendto_desc', 'tool_resourcelimiter'), 0));
+    $label = get_string('configuserstosendto', 'tool_cronmonitor');
+    $desc = get_string('configuserstosendto_desc', 'tool_cronmonitor');
+    $settings->add(new admin_setting_configtext('tool_cronmonitor/userstosendto', $label, $desc, ''));
 }
-
