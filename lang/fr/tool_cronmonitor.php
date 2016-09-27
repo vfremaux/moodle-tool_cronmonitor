@@ -25,9 +25,9 @@
 
 $string['pluginname'] = 'Moniteur de cron';
 $string['configpositivemail'] = 'Envoyer les notifications positives';
-$string['configpositivemail_desc'] = 'Si activé, le moniteur émet un coaurriel même en cas de succès de la vérification';
-$string['configuserstosendto'] = 'Utilisateurs à notifier';
+$string['configpositivemail_desc'] = 'Si activÃ©, le moniteur Ã©met un coaurriel mÃªme en cas de succÃ¨s de la vÃ©rification';
+$string['configuserstosendto'] = 'Utilisateurs Ã  notifier';
 $string['configuserstosendto_desc'] = '
-Donnez une liste séparée par des virgules d\'identifants utilisateur, ou une entrée complètement qualifiée <username>@<mnethostid>.
-Si la liste est vide, tous les administrateurs de site seront notifiés.
+Donnez une liste sÃ©parÃ©e par des virgules d\'identifants utilisateur, ou une entrÃ©e complÃ¨tement qualifiÃ©e <username>@<mnethostid>.
+Si la liste est vide, tous les administrateurs de site seront notifiÃ©s.
 ';
