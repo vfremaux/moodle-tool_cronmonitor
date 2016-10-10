@@ -80,7 +80,9 @@ if (!empty($options['file'])) {
     if ($options['mode'] == 'cli') {
         $cmd = 'sudo -u '.$options['user'].' /usr/bin/php '.$CFG->dirroot.'/admin/cli/cron.php';
 
+        echo 'Executing moodle cron';
         $execres = exec($cmd, $output);
+        $outputstr = implode('', $ouptut);
     } else {
         $params = array();
 
@@ -123,7 +125,7 @@ if (!empty($options['file'])) {
             }
         }
 
-        $output = curl_exec($ch);
+        $outputstr = curl_exec($ch);
         $error = curl_error($ch);
         $info = curl_getinfo($ch);
 
@@ -145,20 +147,20 @@ if (!empty($options['file'])) {
 // We have a proper output. Analyse.
 
 $notification = '';
-if (empty($output)) {
+if (empty($outputstr)) {
     $faulttype = 'EMPTY';
     $notification = '['.$CFG->wwwroot.'] Empty cron output. This is NOT an expected situation and may denote cron execution silent failure';
 } else {
 
-    if (preg_match('/Cron script completed correctly/', $output)) {
+    if (preg_match('/Cron script completed correctly/', $outputstr)) {
         die('Cron OK'."\n");
-    } else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $output)) {
+    } else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $outputstr)) {
         $faulttype = 'UPGRADE';
         $notification = '['.$CFG->wwwroot.'] Unresolved upgrade pending.';
-    } else if (preg_match('/Fatal error/', $output)) {
+    } else if (preg_match('/Fatal error/', $outputstr)) {
         $faulttype = 'PHP ERROR';
         $notification = '['.$CFG->wwwroot.'] Fatal error in cron.';
-    } else if (!preg_match('/Error code: cronerrorpassword/', $output)) {
+    } else if (preg_match('/Error code: cronerrorpassword/', $outputstr)) {
         $faulttype = 'PASSWORD ERROR';
         $notification = '['.$CFG->wwwroot.'] cron locked bvy password.';
     } else {
@@ -177,22 +179,33 @@ if (empty($config->userstosendto)) {
 } else {
     $usernames = explode(',', $config->userstosendto);
     foreach ($usernames as $un) {
+
         $un = trim($un);
-        $u = $DB->get_record('user', array('id' => $un));
-        $targets[$u->id] = $u;
+
+        if (strstr($un, '@') !== false) {
+            // this is an email
+            $u = $DB->get_record('user', array('email' => $un));
+        } else {
+            $u = $DB->get_record('user', array('username' => $un));
+        }
+        if ($u) {
+            $targets[$u->id] = $u;
+        }
     }
 }
 
 if (!empty($notification)) {
 
-    mtrace('Mode: '.$options['mode']);
-    mtrace($faulttype);
-    mtrace($notification);
+    echo('Mode: '.$options['mode']."\n");
+    echo($faulttype."\n");
+    echo($notification."\n");
 
     foreach ($targets as $a) {
         email_to_user($a, $a, '['.$SITE->shortname.':'.$faulttype.'] Cron Monitoring system', $notification);
     }
 } else if ($config->positivemail) {
+    echo 'Mode: '.$options['mode']."\n";
+    echo "OK.\n";
     if (!empty($targets)) {
         foreach ($targets as $a) {
             email_to_user($a, $a, '['.$SITE->shortname.' CRON OK] Cron Monitoring system', 'Everything fine');
