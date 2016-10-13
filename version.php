@@ -33,4 +33,4 @@ $plugin->release = '2.7.0 (Build 2016011100)';
 $plugin->maturity = MATURITY_RC;
 
 // Non moodle attributes.
-$plugin->codeincrement = '2.7.0000';
+$plugin->codeincrement = '2.7.0001';
