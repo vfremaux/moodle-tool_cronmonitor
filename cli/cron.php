@@ -25,6 +25,7 @@ define('CLI_SCRIPT', true);
 
 require(dirname(dirname(dirname(dirname(dirname(__FILE__))))).'/config.php');
 require_once($CFG->libdir.'/clilib.php'); // Cli only functions.
+require_once($CFG->dirroot.'/admin/tool/cronmonitor/lib.php'); // Common cronmonitor libs.
 
 // Now get cli options.
 
@@ -144,71 +145,4 @@ if (!empty($options['file'])) {
     }
 }
 
-// We have a proper output. Analyse.
-
-$notification = '';
-if (empty($outputstr)) {
-    $faulttype = 'EMPTY';
-    $notification = '['.$CFG->wwwroot.'] Empty cron output. This is NOT an expected situation and may denote cron execution silent failure';
-} else {
-
-    if (preg_match('/Cron script completed correctly/', $outputstr)) {
-        die('Cron OK'."\n");
-    } else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $outputstr)) {
-        $faulttype = 'UPGRADE';
-        $notification = '['.$CFG->wwwroot.'] Unresolved upgrade pending.';
-    } else if (preg_match('/Fatal error/', $outputstr)) {
-        $faulttype = 'PHP ERROR';
-        $notification = '['.$CFG->wwwroot.'] Fatal error in cron.';
-    } else if (preg_match('/Error code: cronerrorpassword/', $outputstr)) {
-        $faulttype = 'PASSWORD ERROR';
-        $notification = '['.$CFG->wwwroot.'] cron locked bvy password.';
-    } else {
-        $faulttype = 'OTHER ERROR';
-        $notification = '['.$CFG->wwwroot.'] cron has some unclassified error.';
-    }
-}
-
-// We have some notifications.
-
-$config = get_config('tool_cronmonitor');
-
-$targets = array();
-if (empty($config->userstosendto)) {
-    $targets = $DB->get_records_list('user', 'id', explode(',', $CFG->siteadmins));
-} else {
-    $usernames = explode(',', $config->userstosendto);
-    foreach ($usernames as $un) {
-
-        $un = trim($un);
-
-        if (strstr($un, '@') !== false) {
-            // this is an email
-            $u = $DB->get_record('user', array('email' => $un));
-        } else {
-            $u = $DB->get_record('user', array('username' => $un));
-        }
-        if ($u) {
-            $targets[$u->id] = $u;
-        }
-    }
-}
-
-if (!empty($notification)) {
-
-    echo('Mode: '.$options['mode']."\n");
-    echo($faulttype."\n");
-    echo($notification."\n");
-
-    foreach ($targets as $a) {
-        email_to_user($a, $a, '['.$SITE->shortname.':'.$faulttype.'] Cron Monitoring system', $notification);
-    }
-} else if ($config->positivemail) {
-    echo 'Mode: '.$options['mode']."\n";
-    echo "OK.\n";
-    if (!empty($targets)) {
-        foreach ($targets as $a) {
-            email_to_user($a, $a, '['.$SITE->shortname.' CRON OK] Cron Monitoring system', 'Everything fine');
-        }
-    }
-}
+send_notifications($outputstr, $options);
