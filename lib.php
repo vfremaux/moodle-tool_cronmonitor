@@ -37,9 +37,9 @@ function send_notifications($outputstr, $options) {
         } else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $outputstr)) {
             $faulttype = 'UPGRADE';
             $notification = '['.$CFG->wwwroot.'] Unresolved upgrade pending.';
-        } else if (preg_match('/Fatal error/', $outputstr)) {
+        } else if (preg_match('/Fatal error(.*)/', $outputstr, $matches)) {
             $faulttype = 'PHP ERROR';
-            $notification = '['.$CFG->wwwroot.'] Fatal error in cron.';
+            $notification = '['.$CFG->wwwroot.'] Fatal error in cron : '.$matches[0];
         } else if (preg_match('/Error code: cronerrorpassword/', $outputstr)) {
             $faulttype = 'PASSWORD ERROR';
             $notification = '['.$CFG->wwwroot.'] cron locked bvy password.';
