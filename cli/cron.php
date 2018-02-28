@@ -21,19 +21,24 @@
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+global $CLI_VMOODLE_PRECHECK;
+
 define('CLI_SCRIPT', true);
+define('CACHE_DISABLE_ALL', true);
+$CLI_VMOODLE_PRECHECK = true; // Force first config to be minimal.
 
 require(dirname(dirname(dirname(dirname(dirname(__FILE__))))).'/config.php');
-require_once($CFG->libdir.'/clilib.php'); // Cli only functions.
-require_once($CFG->dirroot.'/admin/tool/cronmonitor/lib.php'); // Common cronmonitor libs.
+require_once(dirname(dirname(dirname(dirname(dirname(__FILE__))))).'/lib/clilib.php'); // Cli only functions.
 
 // Now get cli options.
 
 list($options, $unrecognized) = cli_get_params(array('help' => false,
                                                      'file' => false,
                                                      'mode' => false,
+                                                     'host' => false,
                                                      'user' => false),
                                                array('h' => 'help',
+                                                     'H' => 'host',
                                                      'm' => 'mode',
                                                      'f' => 'file',
                                                      'u' => 'user')
@@ -41,7 +46,7 @@ list($options, $unrecognized) = cli_get_params(array('help' => false,
 
 if ($unrecognized) {
     $unrecognized = implode("\n ", $unrecognized);
-    cli_error(get_string('cliunknowoption', 'admin', $unrecognized));
+    cli_error($unrecognized. " is not a recognized option\n");
 }
 
 if ($options['help']) {
@@ -50,18 +55,36 @@ Monitors the platform cron and checks ts sanity. Mails an alert if blocked or er
 
 Options:
 -h, --help            Print out this help
+-H, --host            The virtual moodle to play for. Main moodle install if missing.
 -m, --mode            Mode (web or cli)
 -f, --file            If file is given, will check the cron result in the given file. If not, the monitor will fire
 a cron execution to get the cron result.
 -u, --user            the system user that operates the script (via sudo). www-data as default.
 
 Example in crontab :
-0 */4 * * * /usr/bin/php admin/tool/cronmonitor/cli/cron.php
+0 */4 * * * /usr/bin/php admin/tool/cronmonitor/cli/cron.php -f /var/log/moodlecrons/moodle.myorg.org.cron.log
 ";
 
     echo $help;
     die;
 }
+
+if (!empty($options['host'])) {
+    // Arms the vmoodle switching.
+    echo('Arming for '.$options['host']."\n"); // Mtrace not yet available.
+    define('CLI_VMOODLE_OVERRIDE', $options['host']);
+}
+
+// Replay full config whenever. If vmoodle switch is armed, will switch now config.
+
+if (!defined('MOODLE_INTERNAL')) {
+    // If we are still in precheck, this means this is NOT a VMoodle install and full setup has already run.
+    // Otherwise we only have a tiny config at this location, sso run full config again forcing playing host if required.
+    require(dirname(dirname(dirname(dirname(dirname(__FILE__))))).'/config.php'); // Global moodle config file.
+}
+echo('Config check : playing for '.$CFG->wwwroot."\n");
+
+require_once($CFG->dirroot.'/admin/tool/cronmonitor/lib.php'); // Common cronmonitor libs.
 
 if (empty($options['user'])) {
     $options['user'] = 'www-data';
@@ -72,19 +95,22 @@ if (empty($options['mode'])) {
 }
 
 if (!empty($options['file'])) {
+    // We designated a file where the cron log was output.
     if (!file_exists($options['file'])) {
         die('Error reading output file');
     }
 
-    $output = implode('', file($options['file']));
+    $outputstr = implode('', file($options['file']));
 } else {
     if ($options['mode'] == 'cli') {
+        // We play a cli cron.
         $cmd = 'sudo -u '.$options['user'].' /usr/bin/php '.$CFG->dirroot.'/admin/cli/cron.php';
 
         echo 'Executing moodle cron';
         $execres = exec($cmd, $output);
         $outputstr = implode('', $ouptut);
     } else {
+        // We play a web curl cron.
         $params = array();
 
         if (!empty($CFG->cronremotepassword)) {
@@ -142,6 +168,12 @@ if (!empty($options['file'])) {
 
         // Close cURL resource, and free up system resources.
         curl_close($ch);
+
+        if (!empty($notification)) {
+            $targets = tool_cronmonitor_get_notification_targets();
+            tool_cronmonitor_notify($targets, $notification);
+            die("Done.\n");
+        }
     }
 }
 
