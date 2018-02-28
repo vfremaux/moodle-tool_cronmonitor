@@ -26,6 +26,13 @@
 function send_notifications($outputstr, $options) {
     global $CFG, $DB, $SITE;
 
+    function tail($str, $num) {
+        $lines = explode("\n", $str);
+        $totallines = count($lines);
+        $buffer = array_slice($lines, $totalines - $num);
+        return implode("\n", $buffer);
+    }
+
     $notification = '';
     if (empty($outputstr)) {
         $faulttype = 'EMPTY';
@@ -42,22 +49,33 @@ function send_notifications($outputstr, $options) {
             $notification = '['.$CFG->wwwroot.'] Fatal error in cron : '.$matches[0];
         } else if (preg_match('/Error code: cronerrorpassword/', $outputstr)) {
             $faulttype = 'PASSWORD ERROR';
-            $notification = '['.$CFG->wwwroot.'] cron locked bvy password.';
+            $notification = '['.$CFG->wwwroot.'] cron locked by password.';
         } else {
             $faulttype = 'OTHER ERROR';
-            $notification = '['.$CFG->wwwroot.'] cron has some unclassified error.';
+            $notification = '['.$CFG->wwwroot.'] cron has some unclassified error. The end of the script is:'."\n\n";
+            $notification .= tail($outputstr, 10);
         }
     }
 
     // We have some notifications.
 
+    $targets = tool_cronmonitor_get_notification_targets();
+    tool_cronmonitor_notify($targets, $notification);
+    echo $notification;
+}
+
+function tool_cronmonitor_get_notification_targets() {
+    global $DB, $CFG;
+
     $userstosendto = $DB->get_field('config_plugins', 'value', array('plugin' => 'tool_cronmonitor', 'name' => 'userstosendto'));
-    $positivemail = $DB->get_field('config_plugins', 'value', array('plugin' => 'tool_cronmonitor', 'name' => 'positivemail'));
 
     $targets = array();
     if (empty($userstosendto)) {
         echo('Sending to default targets'."\n");
         $targets = $DB->get_records_list('user', 'id', explode(',', $CFG->siteadmins));
+        foreach ($targets as $u) {
+            echo "\t".fullname($u)."\n";
+        }
     } else {
         $usernames = explode(',', $userstosendto);
         foreach ($usernames as $un) {
@@ -78,17 +96,28 @@ function send_notifications($outputstr, $options) {
                 $u = $DB->get_record('user', array('username' => $un));
             }
             if ($u) {
+                echo "\t".fullname($u)."\n";
                 $targets[$u->id] = $u;
             }
         }
     }
 
-    echo('Mode: '.$options['mode']."\n");
+    return $targets;
+}
 
+function tool_cronmonitor_notify(&$targets, $notification) {
+    global $DB, $SITE;
+
+    if (empty($targets)) {
+        echo "No notification targets... aborting.\n";
+        return;
+    }
+
+    $positivemail = $DB->get_field('config_plugins', 'value', array('plugin' => 'tool_cronmonitor', 'name' => 'positivemail'));
     if (!empty($notification)) {
 
-        echo($faulttype."\n");
-        echo($notification."\n");
+        echo $faulttype."\n";
+        echo $notification."\n";
 
         foreach ($targets as $a) {
             email_to_user($a, $a, '['.$SITE->shortname.':'.$faulttype.'] Cron Monitoring system', $notification);
