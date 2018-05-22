@@ -14,23 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Version details.
- *
- * @package     tool_cronmonitor
- * @category    tool
- * @author      Valery Fremaux <valery.fremaux@gmail.com>
- * @copyright   2016 Valery Fremaux (http://www.mylearningfactory.com)
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace local_cronmonitor\privacy;
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2018022800; // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires  = 2018042700; // Requires this Moodle version.
-$plugin->component = 'tool_cronmonitor'; // Full name of the plugin (used for diagnostics).
-$plugin->release = '3.5.0 (Build 2018022800)';
-$plugin->maturity = MATURITY_STABLE;
-
-// Non moodle attributes.
-$plugin->codeincrement = '3.5.0001';
+class provider implements \core_privacy\local\metadata\null_provider {
+}
