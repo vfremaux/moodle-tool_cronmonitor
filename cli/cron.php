@@ -35,11 +35,13 @@ require_once(dirname(dirname(dirname(dirname(dirname(__FILE__))))).'/lib/clilib.
 list($options, $unrecognized) = cli_get_params(array('help' => false,
                                                      'file' => false,
                                                      'mode' => false,
+                                                     'debug' => false,
                                                      'host' => false,
                                                      'user' => false),
                                                array('h' => 'help',
                                                      'H' => 'host',
                                                      'm' => 'mode',
+                                                     'd' => 'debug',
                                                      'f' => 'file',
                                                      'u' => 'user')
                                                );
@@ -56,7 +58,8 @@ Monitors the platform cron and checks ts sanity. Mails an alert if blocked or er
 Options:
 -h, --help            Print out this help
 -H, --host            The virtual moodle to play for. Main moodle install if missing.
--m, --mode            Mode (web or cli)
+-m, --mode            Mode (web, cli or vcli)
+-d, --debug           Debug mode
 -f, --file            If file is given, will check the cron result in the given file. If not, the monitor will fire
 a cron execution to get the cron result.
 -u, --user            the system user that operates the script (via sudo). www-data as default.
@@ -94,6 +97,11 @@ if (empty($options['mode'])) {
     $options['mode'] = 'web';
 }
 
+$debugcli = '';
+if (!empty($options['debug'])) {
+    $debugcli = ' --debug ';
+}
+
 if (!empty($options['file'])) {
     // We designated a file where the cron log was output.
     if (!file_exists($options['file'])) {
@@ -108,7 +116,17 @@ if (!empty($options['file'])) {
 
         echo 'Executing moodle cron';
         $execres = exec($cmd, $output);
-        $outputstr = implode('', $ouptut);
+        $outputstr = implode('', $output);
+    } else if ($options['mode'] == 'vcli') {
+        // We play a vmoodle cli cron in a vmoodle environment.
+        $cmd = 'sudo -u '.$options['user'].' ';
+        $cmd .= '/usr/bin/php ';
+        $cmd .= $CFG->dirroot.'/local/vmoodle/cli/cron.php --host="'.$options['host'].'" ';
+        $cmd .= $debugcli;
+
+        echo 'Executing vmoodle cron '.$cmd."\n";
+        $execres = exec($cmd, $output);
+        $outputstr = implode('', $output);
     } else {
         // We play a web curl cron.
         $params = array();

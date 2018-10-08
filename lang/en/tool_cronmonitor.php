@@ -23,6 +23,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL
  */
 
+$string['privacy:metadata'] = "The cronmonitor tool do not manipulate any data belonging to users";
+
 $string['pluginname'] = 'Cron monitor';
 $string['configpositivemail'] = 'Send positive mail';
 $string['configpositivemail_desc'] = 'If enabled, sends a mail even on check success';
