@@ -36,20 +36,20 @@ function send_notifications($outputstr, $options) {
     $notification = '';
     if (empty($outputstr)) {
         $faulttype = 'EMPTY';
-        $notification = '['.$CFG->wwwroot.'] Empty cron output. This is NOT an expected situation and may denote cron execution silent failure';
+        $notification = '['.$CFG->wwwroot.'] Empty cron output. This is NOT an expected situation and may denote cron execution silent failure'."\n";
     } else {
 
         if (preg_match('/Cron script completed correctly/', $outputstr)) {
             assert(true);
         } else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $outputstr)) {
             $faulttype = 'UPGRADE';
-            $notification = '['.$CFG->wwwroot.'] Unresolved upgrade pending.';
+            $notification = '['.$CFG->wwwroot.'] Unresolved upgrade pending.'."\n";
         } else if (preg_match('/Fatal error(.*)/', $outputstr, $matches)) {
             $faulttype = 'PHP ERROR';
             $notification = '['.$CFG->wwwroot.'] Fatal error in cron : '.$matches[0];
         } else if (preg_match('/Error code: cronerrorpassword/', $outputstr)) {
             $faulttype = 'PASSWORD ERROR';
-            $notification = '['.$CFG->wwwroot.'] cron locked by password.';
+            $notification = '['.$CFG->wwwroot.'] cron locked by password.'."\n";
         } else {
             $faulttype = 'OTHER ERROR';
             $notification = '['.$CFG->wwwroot.'] cron has some unclassified error. The end of the script is:'."\n\n";
@@ -60,7 +60,7 @@ function send_notifications($outputstr, $options) {
     // We have some notifications.
 
     $targets = tool_cronmonitor_get_notification_targets();
-    tool_cronmonitor_notify($targets, $notification);
+    tool_cronmonitor_notify($targets, $faulttype, $notification);
     echo $notification;
 }
 
@@ -105,7 +105,7 @@ function tool_cronmonitor_get_notification_targets() {
     return $targets;
 }
 
-function tool_cronmonitor_notify(&$targets, $notification) {
+function tool_cronmonitor_notify(&$targets, $faulttype, $notification) {
     global $DB, $SITE;
 
     if (empty($targets)) {
