@@ -18,7 +18,7 @@
  *
  * @package    tool_cronmonitor
  * @category   tool
- * @author     Valery Fremaux <valery.fremaux@club-internet.fr>
+ * @author     Valery Fremaux <valery.fremaux@gmail.com>
  * @copyright  (C) 2008 onwards Valery Fremaux (http://www.mylearningfactory.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL
  */
@@ -28,6 +28,10 @@ $string['privacy:metadata'] = "The cronmonitor tool do not manipulate any data b
 $string['pluginname'] = 'Cron monitor';
 $string['configpositivemail'] = 'Send positive mail';
 $string['configpositivemail_desc'] = 'If enabled, sends a mail even on check success';
+$string['configsavecronfailures'] = 'Save cron failures';
+$string['configsavecronfailures_desc'] = 'If enabled, saves the full cron report file to <dataroot>/cronfails directory in moodledata. This let examine the complete log output in case of a failure.';
+$string['configcronfailuresmaxfiles'] = 'Max number of cron failure files';
+$string['configcronfailuresmaxfiles_desc'] = 'The max number of cron failure stored files. Older file discarded when reached. 0 stands for no limit.';
 $string['configuserstosendto'] = 'Usernames to send to';
 $string['configuserstosendto_desc'] = '
 Give a coma separated list of usernames, or full qualified username@mnethostid identities

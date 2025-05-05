@@ -17,7 +17,7 @@
 /**
  * @package     tool_cronmonitor
  * @category    tool
- * @copyright   2016 Valery Fremaux <valery@edunao.com>
+ * @copyright   2016 Valery Fremaux <valery@gmail.com>
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -37,13 +37,17 @@ list($options, $unrecognized) = cli_get_params(array('help' => false,
                                                      'mode' => false,
                                                      'debug' => false,
                                                      'host' => false,
-                                                     'user' => false),
+                                                     'user' => false,
+                                                     'verbose' => false,
+                                                     'savetest' => false),
                                                array('h' => 'help',
                                                      'H' => 'host',
                                                      'm' => 'mode',
                                                      'd' => 'debug',
                                                      'f' => 'file',
-                                                     'u' => 'user')
+                                                     'u' => 'user',
+                                                     'v' => 'verbose',
+                                                     't' => 'savetest')
                                                );
 
 if ($unrecognized) {
@@ -56,16 +60,18 @@ if ($options['help']) {
 Monitors the platform cron and checks ts sanity. Mails an alert if blocked or erroneous.
 
 Options:
--h, --help            Print out this help
--H, --host            The virtual moodle to play for. Main moodle install if missing.
--m, --mode            Mode (web, cli or vcli)
--d, --debug           Debug mode
--f, --file            If file is given, will check the cron result in the given file. If not, the monitor will fire
-a cron execution to get the cron result.
--u, --user            the system user that operates the script (via sudo). www-data as default.
+    -h, --help            Print out this help
+    -H, --host            The virtual moodle to play for. Main moodle install if missing.
+    -m, --mode            Mode (web, cli or vcli)
+    -d, --debug           Debug mode
+    -f, --file            If file is given, will check the cron result in the given file. If not, the monitor will fire
+        a cron execution to get the cron result.
+    -u, --user            the system user that operates the script (via sudo). www-data as default.
+    -v, --verbose         Verbose mode.
+    -t, --savetest        Test saving the cronfails log (even if no error).
 
 Example in crontab :
-0 */4 * * * /usr/bin/php admin/tool/cronmonitor/cli/cron.php -f /var/log/moodlecrons/moodle.myorg.org.cron.log
+0 */4 * * * /usr/bin/php admin/tool/cronmonitor/cli/cron.php -f /var/log/moodlecrons/moodle.myorg.org.cron.log > outputfile.log
 ";
 
     echo $help;
@@ -94,32 +100,50 @@ if (empty($options['user'])) {
 }
 
 if (empty($options['mode'])) {
-    $options['mode'] = 'web';
+    $options['mode'] = 'cli';
 }
 
 $debugcli = '';
 if (!empty($options['debug'])) {
+    $CFG->debug = E_ALL;
+    $CFG->debugdisplay = true;
     $debugcli = ' --debug ';
 }
 
 if (!empty($options['file'])) {
     // We designated a file where the cron log was output.
     if (!file_exists($options['file'])) {
-        die('Error reading output file');
+        die('Error reading cron output file');
     }
 
-    $outputstr = implode('', file($options['file']));
+    // reads with share read lock, waits for a read lock.
+    if (is_readable($options['file'])) {
+        $outputstr = implode("\n", file($options['file']));
+    } else {
+        die("could not read in cronlog file {$options['file']}\n");
+    }
 } else {
     if ($options['mode'] == 'cli') {
         // We play a cli cron.
-        $cmd = 'sudo -u '.$options['user'].' /usr/bin/php '.$CFG->dirroot.'/admin/cli/cron.php';
+        $user = get_current_user(); // NOTE : Seems not working when sudoed
+        echo "Running as user $user\n";
+        if ($user != $options['user']) {
+            echo "Sudoing\n";
+            $cmd = 'sudo -u '.$options['user'].' /usr/bin/php '.$CFG->dirroot.'/admin/cli/cron.php';
+        } else {
+            $cmd = '/usr/bin/php '.$CFG->dirroot.'/admin/cli/cron.php';
+        }
 
-        echo 'Executing moodle cron';
+        echo "Executing moodle cron $cmd\n";
         $execres = exec($cmd, $output);
         $outputstr = implode('', $output);
     } else if ($options['mode'] == 'vcli') {
         // We play a vmoodle cli cron in a vmoodle environment.
-        $cmd = 'sudo -u '.$options['user'].' ';
+        $user = get_current_user();
+        $cmd = '';
+        if ($user != $options['user']) {
+            $cmd .= 'sudo -u '.$options['user'].' ';
+        }
         $cmd .= '/usr/bin/php ';
         $cmd .= $CFG->dirroot.'/local/vmoodle/cli/cron.php --host="'.$options['host'].'" ';
         $cmd .= $debugcli;
@@ -188,11 +212,12 @@ if (!empty($options['file'])) {
         curl_close($ch);
 
         if (!empty($notification)) {
-            $targets = tool_cronmonitor_get_notification_targets();
-            tool_cronmonitor_notify($targets, $notification);
+            $targets = tool_cronmonitor_get_notification_targets($options);
+            tool_cronmonitor_notify($targets, $faultype, $notification, $options);
             die("Done.\n");
         }
     }
 }
 
+// Does the two calls above plus getting notification in cronlogfile.
 send_notifications($outputstr, $options);

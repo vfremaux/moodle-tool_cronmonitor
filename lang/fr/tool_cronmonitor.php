@@ -18,7 +18,7 @@
  *
  * @package    tool_cronmonitor
  * @category   tool
- * @author     Valery Fremaux <valery.fremaux@club-internet.fr>
+ * @author     Valery Fremaux <valery.fremaux@gmail.com>
  * @copyright  (C) 2008 onwards Valery Fremaux (http://www.mylearningfactory.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL
  */
@@ -26,6 +26,10 @@
 $string['pluginname'] = 'Moniteur de cron';
 $string['configpositivemail'] = 'Envoyer les notifications positives';
 $string['configpositivemail_desc'] = 'Si activé, le moniteur émet un courriel même en cas de succès de la vérification';
+$string['configsavecronfailures'] = 'Sauvegarder les erreurs de cron';
+$string['configsavecronfailures_desc'] = 'Si activé, les sorties de cron en erreur sont sauvegardées intégralement dans le répertoire <dataroo>/cronfails. Ceci permet d\'examiner la sortie complète du cron en erreur.';
+$string['configcronfailuresmaxfiles'] = 'Nombre max de sauvgardes d\'erreur de cron';
+$string['configcronfailuresmaxfiles_desc'] = 'Le nombre maximum de fichiers à sauvegarder. Le fichier le plus ancien sera supprimé. 0 pour ne pas limiter.';
 $string['configuserstosendto'] = 'Utilisateurs à notifier';
 $string['configuserstosendto_desc'] = '
 Donnez une liste séparée par des virgules d\'identifants utilisateur, ou une entrée complètement qualifiée <username>@<mnethostid>.

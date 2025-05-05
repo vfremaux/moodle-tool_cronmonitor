@@ -21,25 +21,35 @@
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// We have a proper output. Analyse.
-
-function send_notifications($outputstr, $options) {
+/**
+ * We have a cron output got from a cronlogfile. Analyse.
+ * @param $string $outputstr
+ * @param array $options
+ */
+function send_notifications($outputstr, $options = []) {
     global $CFG, $DB, $SITE;
+
+    $config = get_config('tool_cronmonitor');
 
     function tail($str, $num) {
         $lines = explode("\n", $str);
         $totallines = count($lines);
-        $buffer = array_slice($lines, $totalines - $num);
+        $buffer = array_slice($lines, $totallines - $num);
         return implode("\n", $buffer);
     }
 
     $notification = '';
+    $canlog = false;
     if (empty($outputstr)) {
         $faulttype = 'EMPTY';
         $notification = '['.$CFG->wwwroot.'] Empty cron output. This is NOT an expected situation and may denote cron execution silent failure'."\n";
     } else {
 
+        echo ("Output : ".$outputstr);
+
         if (preg_match('/Cron script completed correctly/', $outputstr)) {
+            $faulttype = '';
+            $notification = '['.$CFG->wwwroot.'] cron OK.'."\n";
             assert(true);
         } else if (preg_match('/Moodle upgrade pending, cron execution suspended./', $outputstr)) {
             $faulttype = 'UPGRADE';
@@ -47,6 +57,7 @@ function send_notifications($outputstr, $options) {
         } else if (preg_match('/Fatal error(.*)/', $outputstr, $matches)) {
             $faulttype = 'PHP ERROR';
             $notification = '['.$CFG->wwwroot.'] Fatal error in cron : '.$matches[0];
+            $canlog = true;
         } else if (preg_match('/Error code: cronerrorpassword/', $outputstr)) {
             $faulttype = 'PASSWORD ERROR';
             $notification = '['.$CFG->wwwroot.'] cron locked by password.'."\n";
@@ -54,17 +65,42 @@ function send_notifications($outputstr, $options) {
             $faulttype = 'OTHER ERROR';
             $notification = '['.$CFG->wwwroot.'] cron has some unclassified error. The end of the script is:'."\n\n";
             $notification .= tail($outputstr, 10);
+            $canlog = true;
         }
+    }
+
+    // We can log.
+    if (($canlog && !empty($config->savecronfailures)) || !empty($options['savetest'])) {
+        if (!is_dir($CFG->dataroot.'/cronfails')) {
+            mkdir($CFG->dataroot.'/cronfails', 0775, true);
+        }
+        if ($config->cronfailuresmaxfiles) {
+            // purge oldest.
+            $filelist = glob($CFG->dataroot.'/cronfails/cronfail*');
+            if (count($filelist) > $config->cronfailuresmaxfiles) {
+                sort($filelist);
+                $last = array_pop($files);
+                unlink($last);
+            }
+        }
+        $logfilepath = $CFG->dataroot.'/cronfails/cronfail_'.time().'.log';
+        if ($LOGFILE = fopen($logfilepath, 'w')) {
+            fputs($LOGFILE, $outputstr);
+        }
+        fclose($LOGFILE);
     }
 
     // We have some notifications.
 
-    $targets = tool_cronmonitor_get_notification_targets();
-    tool_cronmonitor_notify($targets, $faulttype, $notification);
-    echo $notification;
+    $targets = tool_cronmonitor_get_notification_targets($options);
+    tool_cronmonitor_notify($targets, $faulttype, $notification, $options);
 }
 
-function tool_cronmonitor_get_notification_targets() {
+/**
+ * Establishes the list of recipients to notify.
+ * @param array $options Options come from CLI or task launcher
+ */
+function tool_cronmonitor_get_notification_targets($options) {
     global $DB, $CFG;
 
     $userstosendto = $DB->get_field('config_plugins', 'value', array('plugin' => 'tool_cronmonitor', 'name' => 'userstosendto'));
@@ -84,19 +120,27 @@ function tool_cronmonitor_get_notification_targets() {
 
             if (strpos($un, '@') !== false) {
                 // This is an email.
-                echo('Targetting cronmon to email target '.$un."\n");
+                if (!empty($options['verbose'])) {
+                    echo('Targetting cronmon to email target '.$un."\n");
+                }
                 $u = $DB->get_record('user', array('email' => $un, 'mnethostid' => $CFG->mnet_localhost_id));
             } else if (is_numeric($un)) {
                 // This is an id.
-                echo('Targetting cronmon to id target '.$un."\n");
+                if (!empty($options['verbose'])) {
+                    echo('Targetting cronmon to id target '.$un."\n");
+                }
                 $u = $DB->get_record('user', array('id' => $un));
             } else {
                 // This is a username.
-                echo('Targetting cronmon to username target '.$un."\n");
+                if (!empty($options['verbose'])) {
+                    echo('Targetting cronmon to username target '.$un."\n");
+                }
                 $u = $DB->get_record('user', array('username' => $un));
             }
             if ($u) {
-                echo "\t".fullname($u)."\n";
+                if (!empty($options['verbose'])) {
+                    echo "\t".fullname($u)."\n";
+                }
                 $targets[$u->id] = $u;
             }
         }
@@ -105,7 +149,14 @@ function tool_cronmonitor_get_notification_targets() {
     return $targets;
 }
 
-function tool_cronmonitor_notify(&$targets, $faulttype, $notification) {
+/**
+ * Process notifications.
+ * @param array &$targets
+ * @param string $faulttype
+ * @param string $notification
+ * @param array $options
+ */
+function tool_cronmonitor_notify($targets, $faulttype, $notification, $options = []) {
     global $DB, $SITE;
 
     if (empty($targets)) {
@@ -114,20 +165,34 @@ function tool_cronmonitor_notify(&$targets, $faulttype, $notification) {
     }
 
     $positivemail = $DB->get_field('config_plugins', 'value', array('plugin' => 'tool_cronmonitor', 'name' => 'positivemail'));
-    if (!empty($notification)) {
+    if (!empty($faulttype)) {
 
-        echo $faulttype."\n";
-        echo $notification."\n";
+        if (!empty($options['verbose'])) {
+            echo "Cron Monitor State:\n";
+            echo "Fault Type : ".$faulttype."\n";
+            echo "####\n".$notification."\n####\n";
+        }
 
         foreach ($targets as $a) {
             email_to_user($a, $a, '['.$SITE->shortname.':'.$faulttype.'] Cron Monitoring system', $notification);
         }
     } else if ($positivemail) {
-        echo "OK.\n";
+        if (!empty($options['verbose'])) {
+            echo "Cron Monitor State:\n";
+            echo "OK.\n";
+        }
         if (!empty($targets)) {
             foreach ($targets as $a) {
                 email_to_user($a, $a, '['.$SITE->shortname.' CRON OK] Cron Monitoring system', 'Everything fine');
             }
+            if (!empty($options['verbose'])) {
+                echo "Positive signal sent.\n";
+            }
+        }
+    } else {
+        if (!empty($options['verbose'])) {
+            echo "Cron Monitor State:\n";
+            echo "Silent OK.\nNo notification sent.\n";
         }
     }
 }

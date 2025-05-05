@@ -17,21 +17,11 @@
 /**
  * @package     tool_cronmonitor
  * @category    tool
- * @copyright   2016 Valery Fremaux <valery@edunao.com>
+ * @copyright   2016 Valery Fremaux <valery.fremaux@gmail.com>
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
-
-if (is_dir($CFG->dirroot.'/local/adminsettings')) {
-    // Integration driven code.
-    require_once($CFG->dirroot.'/local/adminsettings/lib.php');
-    list($hasconfig, $hassiteconfig, $capability) = local_adminsettings_access();
-} else {
-    // Standard Moodle code.
-    $capability = 'moodle/site:config';
-    $hasconfig = $hassiteconfig = has_capability($capability, context_system::instance());
-}
 
 if ($hassiteconfig) {
     /*
@@ -49,4 +39,14 @@ if ($hassiteconfig) {
     $label = get_string('configuserstosendto', 'tool_cronmonitor');
     $desc = get_string('configuserstosendto_desc', 'tool_cronmonitor');
     $settings->add(new admin_setting_configtext('tool_cronmonitor/userstosendto', $label, $desc, ''));
+
+    $label = get_string('configsavecronfailures', 'tool_cronmonitor');
+    $desc = get_string('configsavecronfailures_desc', 'tool_cronmonitor');
+    $default = 0;
+    $settings->add(new admin_setting_configcheckbox('tool_cronmonitor/savecronfailures', $label, $desc, $default));
+
+    $label = get_string('configcronfailuresmaxfiles', 'tool_cronmonitor');
+    $desc = get_string('configcronfailuresmaxfiles_desc', 'tool_cronmonitor');
+    $default = 10;
+    $settings->add(new admin_setting_configtext('tool_cronmonitor/cronfailuresmaxfiles', $label, $desc, $default));
 }
